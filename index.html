@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Reset Kit</title>
+<meta name="theme-color" content="#FF6B35">
+<link rel="manifest" href='data:application/json,{"name":"Morning Reset Kit","short_name":"Reset","display":"standalone","background_color":"%23FFF9F2","theme_color":"%23FF6B35","start_url":"."}'>
+<style>
+*{box-sizing:border-box;font-family:system-ui,sans-serif}
+body{margin:0;background:#FFF9F2;color:#2b2b2b;display:flex;justify-content:center}
+.wrap{max-width:420px;width:100%;padding:20px}
+.card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.06);margin-bottom:16px}
+h1{font-size:26px;margin:6px 0} .sub{color:#FF6B35;font-weight:700}
+button{width:100%;padding:16px;border:0;border-radius:16px;font-size:18px;font-weight:800;background:#FF6B35;color:#fff;cursor:pointer}
+button.ghost{background:#0DBA9A} button:disabled{opacity:.5}
+.timer{font-size:64px;font-weight:900;text-align:center;margin:10px 0}
+.phase{text-align:center;font-size:20px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px}
+.day{aspect-ratio:1;border-radius:10px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:14px}
+.day.done{background:#0DBA9A;color:#fff} .day.today{outline:3px solid #FF6B35}
+.row{display:flex;gap:8px} small{color:#777}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<div class="sub">Start Your Day Without Scrolling</div>
+<h1>☀️ Morning Reset Kit</h1>
+<small>Good Morning • <span id="dayLabel"></span> • Phone After <input type="time" id="phoneTime" value="07:15" style="width:90px"></small>
+</div>
+<div class="card">
+<div class="phase" id="phase">พร้อมไหม? 5 นาทีแรกเป็นของคุณ</div>
+<div class="timer" id="timer">5:00</div>
+<div class="row">
+<button id="startBtn">START 5-MIN RESET</button>
+</div>
+<p style="text-align:center"><button id="doneBtn" class="ghost" disabled style="margin-top:10px">✅ เสร็จแล้ว ติดสติกเกอร์วันนี้</button></p>
+<audio id="ding" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+</div>
+<div class="card">
+<b>🗓️ 30-Day Journal</b>
+<div>Streak ปัจจุบัน: <b id="streak">0</b> วัน • Badge: <b id="badge">🌱</b></div>
+<div class="grid" id="grid"></div>
+<p><small>Badge: Day 3 🌿 • Day 7 🌻 • Day 14 🏆 • Day 30 👑<br>
+ข้อมูลเก็บในเครื่องเท่านั้น (localStorage) ไม่ส่งออกเน็ต</small></p>
+<button id="resetBtn" style="background:#ddd;color:#333;font-size:14px">รีเซ็ตข้อมูลทดลอง</button>
+</div>
+</div>
+<script>
+let total = 5*60, left = total, iv=null;
+let steps = [["🧘 หายใจลึก 1 นาที",60],["🙆 ยืดคอ+ไหล่ 1 นาที",60],["🚶 ลุกยืน+บิดตัว 1 นาที",60],["💧 ดื่มน้ำ+มองไกล 1 นาที",60],["📝 ตั้งเป้า 1 อย่าง 1 นาที",60]];
+const timerEl=document.getElementById('timer'), phaseEl=document.getElementById('phase');
+const startBtn=document.getElementById('startBtn'), doneBtn=document.getElementById('doneBtn');
+function getData(){ try{return JSON.parse(localStorage.getItem('resetKit')||'{}')}catch(e){return {}} }
+function saveData(d){ localStorage.setItem('resetKit',JSON.stringify(d)) }
+function todayKey(){ return new Date().toISOString().slice(0,10) }
+function render(){
+ let d=getData(); let dates=Object.keys(d).sort();
+ let streak=0; let cur=new Date();
+ while(d[cur.toISOString().slice(0,10)]){streak++; cur.setDate(cur.getDate()-1);}
+ document.getElementById('streak').textContent=streak;
+ let b="🌱"; if(streak>=30)b="👑"; else if(streak>=14)b="🏆"; else if(streak>=7)b="🌻"; else if(streak>=3)b="🌿";
+ document.getElementById('badge').textContent=b;
+ document.getElementById('dayLabel').textContent="Day "+(dates.length+1);
+ let g=document.getElementById('grid'); g.innerHTML="";
+ for(let i=0;i<30;i++){ let dt=new Date(); dt.setDate(dt.getDate()-(29-i));
+  let k=dt.toISOString().slice(0,10); let div=document.createElement('div');
+  div.className='day'+(d[k]?' done':'')+(k===todayKey()?' today':'');
+  div.textContent=d[k]?'✓':dt.getDate(); g.appendChild(div); }
+}
+function tick(){
+ left--; if(left<0){clearInterval(iv); phaseEl.textContent="🎉 ครบแล้ว! เก่งมาก"; timerEl.textContent="0:00"; document.getElementById('ding').play(); doneBtn.disabled=false; startBtn.disabled=true; return;}
+ let m=Math.floor(left/60), s=left%60; timerEl.textContent=m+":"+String(s).padStart(2,'0');
+ let elapsed=total-left, acc=0, name=steps[0][0];
+ for(let [n,dur] of steps){ acc+=dur; if(elapsed<acc){name=n;break;} }
+ phaseEl.textContent=name;
+}
+startBtn.onclick=()=>{ left=total; doneBtn.disabled=true; clearInterval(iv); iv=setInterval(tick,1000); phaseEl.textContent=steps[0][0]; };
+doneBtn.onclick=()=>{ let d=getData(); d[todayKey()]=true; saveData(d); render(); phaseEl.textContent="⭐ ติดสติกเกอร์แล้ว พรุ่งนี้เจอกัน"; doneBtn.disabled=true; startBtn.disabled=false; left=total; timerEl.textContent="5:00"; };
+document.getElementById('resetBtn').onclick=()=>{ if(confirm('ล้างข้อมูล?')){localStorage.removeItem('resetKit');render();} };
+render();
+if('serviceWorker' in navigator){ /* offline ได้เมื่อโฮสต์ https */ }
+</script>
+</body>
+</html>
